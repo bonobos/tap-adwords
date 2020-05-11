@@ -1,4 +1,8 @@
 # Changelog
+
+## 1.12.2
+  * Allow catalog argument
+
 ## 1.12.1
   * Fixed time formatting bug.
 ## 1.12.0
