@@ -846,8 +846,8 @@ def sync_stream(stream_name, stream_metadata, sdk_client):
     else:
         sync_report(stream_name, stream_metadata, sdk_client)
 
-def do_sync(properties, sdk_client):
-    for catalog in properties['streams']:
+def do_sync(catalogs, sdk_client):
+    for catalog in catalogs['streams']:
         stream_name = catalog.get('stream')
         stream_metadata = metadata.to_map(catalog.get('metadata'))
 
@@ -1028,15 +1028,75 @@ def create_sdk_client(customer_id):
                                  client_customer_id=customer_id)
     return sdk_client
 
-def do_sync_all_customers(customer_ids, properties):
+def do_sync_all_customers(customer_ids, catalogs):
     for customer_id in customer_ids:
         LOGGER.info('Syncing customer ID %s ...', customer_id)
         sdk_client = create_sdk_client(customer_id)
-        do_sync(properties, sdk_client)
+        do_sync(catalogs, sdk_client)
         LOGGER.info('Done syncing customer ID %s.', customer_id)
 
+def parse_args(required_config_keys):
+    '''Parse standard command-line args.
+
+    Parses the command-line arguments mentioned in the SPEC and the
+    BEST_PRACTICES documents:
+
+    -c,--config     Config file
+    -s,--state      State file
+    -d,--discover   Run in discover mode
+    -p,--properties Properties file: DEPRECATED, please use --catalog instead
+    --catalog       Catalog file
+
+    Returns the parsed args object from argparse. For each argument that
+    point to JSON files (config, state, properties), we will automatically
+    load and parse the JSON file.
+    '''
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        '-c', '--config',
+        help='Config file',
+        required=True)
+
+    parser.add_argument(
+        '-s', '--state',
+        help='State file')
+
+    parser.add_argument(
+        '-p', '--properties',
+        help='Property selections: DEPRECATED, Please use --catalog instead')
+
+    parser.add_argument(
+        '--catalog',
+        help='Catalog file')
+
+    parser.add_argument(
+        '-d', '--discover',
+        action='store_true',
+        help='Do schema discovery')
+
+    args = parser.parse_args()
+    if args.config:
+        args.config = load_json(args.config)
+    if args.state:
+        args.state = load_json(args.state)
+    else:
+        args.state = {}
+    if args.properties:
+        args.properties = load_json(args.properties)
+    if args.catalog:
+        args.catalog = load_json(args.catalog)
+
+    utils.check_config(args.config, required_config_keys)
+
+    return args
+
+def load_json(path):
+    with open(path) as fil:
+        return json.load(fil)
+
 def main_impl():
-    args = utils.parse_args(REQUIRED_CONFIG_KEYS)
+    args = parse_args(REQUIRED_CONFIG_KEYS)
 
     CONFIG.update(args.config)
     STATE.update(args.state)
@@ -1045,8 +1105,8 @@ def main_impl():
     if args.discover:
         do_discover(customer_ids)
         LOGGER.info("Discovery complete")
-    elif args.properties:
-        do_sync_all_customers(customer_ids, args.properties)
+    elif args.catalog:
+        do_sync_all_customers(customer_ids, catalogs=args.catalog)
         LOGGER.info("Sync Completed")
     else:
         LOGGER.info("No properties were selected")
