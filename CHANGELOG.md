@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.12.3
+  * Add ADGROUP_PERFORMANCE_REPORT and FINAL_URL_REPORT
+
 ## 1.12.2
   * Allow catalog argument
 
